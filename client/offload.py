@@ -7,7 +7,6 @@ import multiprocessing
 port = 5001                
 mics = [("mic0", 24), ("mic1", 24)]
 cpus = [("localhost", 4)]
-l = multiprocessing.Lock()
 
 workers = []
 
@@ -30,25 +29,30 @@ for a in np.linspace(2.,3.,10):
         workstring = "./nbody --a=%.8e --e=%.8e" % (a,e)
         jobs.append(workstring)
         j+=1
-status = multiprocessing.Array("d",len(jobs), lock=l)
+status = multiprocessing.Array("d",len(jobs), lock=True)
+manager = multiprocessing.Manager()
+results = manager.list(range(len(jobs)))
+
 for i in xrange(len(jobs)):
     status[i] = 0
-results = [None]*len(jobs)
 
-def worker_master(worker,l):
+def worker_master(worker, results):
     hostname, i  = worker
     for j in xrange(len(jobs)):
-        if status[j]>0:
+        if status[j]>0:    
             continue
         else:
-            status[j] = 1
+            status[j] = 1   # status = working on it
         workstring = jobs[j]
         print "Sending \"%s\" (%d) to %s (%d)" % (workstring, j, hostname, i)
         s = socket.socket()    
         s.connect((hostname, port))
         s.send(workstring)
-        print s.recv(1024)
+        results[j] = s.recv(1024)
         s.close
+        status[j] = 2       # status = done
+    # Nothing else left to do.
+    return
 
 
 print "Workers: %d" %len(workers)
@@ -57,9 +61,11 @@ print "Jobs:    %d" %len(jobs)
 # Local pool, no work done here, only for communication
 wref = len(workers)*[None]
 for w,worker in enumerate(workers):
-    wref[w] = multiprocessing.Process(target=worker_master, args=(worker,l))
+    wref[w] = multiprocessing.Process(target=worker_master, args=(worker,results,))
     wref[w].start()
 
 for w,worker in enumerate(workers):
     wref[w].join()
 
+for result in results:
+    print result
