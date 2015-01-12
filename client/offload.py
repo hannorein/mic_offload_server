@@ -6,17 +6,15 @@ import os
 import time
 import sys
 
-port = 5001                
-mics = [("mic0", 228), ("mic1", 228)]
-cpus = [("localhost", 20)]
-
-
-files_upload_mic = [("../../megno_grid/nbody_mic","nbody")]
-files_upload_cpu = [("../../megno_grid/nbody","nbody")]
+mics = [ 
+         ("mic0",      228, [("../../megno_grid/nbody_mic","nbody")]), 
+         ("mic1",      228, [("../../megno_grid/nbody_mic","nbody")]), 
+         ("localhost", 20,  [("../../megno_grid/nbody","nbody")]) 
+         ]
 
 jobs = []
 for a in np.linspace(1.2,1.5,100):
-    for e in np.linspace(0.,.1,20):
+    for e in np.linspace(0.,.1,100):
         workstring = "./nbody --a=%.8e --e=%.8e | tail -n 1" % (a,e)
         jobs.append(workstring)
 
@@ -26,23 +24,15 @@ results = manager.list(range(len(jobs)))
 workdone = manager.dict()
 
 workers = []
-def generate_workers(resource):
-    hostname, numthreads = resource
+for mic in mics:
+    hostname, numthreads, files = mic
     workdone[hostname] = 0 
     i = 0
     for i in xrange(numthreads):
         workers.append((hostname, i))
-
-for mic in mics:
-    generate_workers(mic)
-    for file, rfile in files_upload_mic:
-        print "Copying %s to %s"  %(file, mic[0])
-        os.system("scp %s %s:~/%s" %(file, mic[0], rfile))
-for cpu in cpus:
-    generate_workers(cpu)
-    for file, rfile in files_upload_cpu:
-        print "Copying %s to %s"  %(file, cpu[0])
-        os.system("scp %s %s:~/%s" %(file, cpu[0], rfile))
+    for file, rfile in files:
+        print "Copying %s to %s"  %(file, hostname)
+        os.system("scp %s %s:~/%s" %(file, hostname, rfile))
 
 
 for i in xrange(len(jobs)):
@@ -58,7 +48,7 @@ def worker_master(worker):
         workstring = jobs[j]
        # print "Sending \"%s\" (%d) to %s (%d)" % (workstring, j, hostname, i)
         s = socket.socket()    
-        s.connect((hostname, port))
+        s.connect((hostname, 5001))
         s.send(workstring)
         res = s.recv(1024).split("\n")[0]
         if len(res)==0:
@@ -99,7 +89,7 @@ while True:
     if jobs_done == len(jobs):
         break
     else:
-        time.sleep(1.)
+        time.sleep(.4)
 
 for w,worker in enumerate(workers):
     wref[w].join()
