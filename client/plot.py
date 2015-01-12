@@ -9,7 +9,7 @@ import matplotlib.pyplot as pl
 #extent = [a.min(), e.max(), e.min(), e.max()]
 res = np.load("results.npy")
 N = int(np.sqrt(len(res)))
-pl.imshow(np.array(res).reshape((N,N)), vmin=1.8, vmax=4., aspect='auto', origin="lower", interpolation='nearest', cmap="RdYlGn_r" )
+pl.imshow(np.array(res).reshape((N,N)).T, vmin=1.8, vmax=4., aspect='auto', origin="lower", interpolation='nearest', cmap="RdYlGn_r" )
 cb1 = pl.colorbar()
 cb1.solids.set_rasterized(True)
 cb1.set_label("MEGNO stability indicator $\\langle Y \\rangle$")
