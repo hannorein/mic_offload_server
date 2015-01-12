@@ -1,13 +1,13 @@
 #! /bin/env python  
 import socket             
 import numpy as np
-from interruptible_pool import InterruptiblePool
-from multiprocessing import Lock
+#from interruptible_pool import InterruptiblePool
+import multiprocessing
 
 port = 5001                
 mics = [("mic0", 24), ("mic1", 24)]
 cpus = [("localhost", 4)]
-l = Lock()
+l = multiprocessing.Lock()
 
 workers = []
 
@@ -28,28 +28,38 @@ j = 0
 for a in np.linspace(2.,3.,10):
     for e in np.linspace(0.,1.,10):
         workstring = "./nbody --a=%.8e --e=%.8e" % (a,e)
-        jobs.append((j,workstring))
-results = []*len(jobs)
+        jobs.append(workstring)
+        j+=1
+status = multiprocessing.Array("d",len(jobs), lock=l)
+for i in xrange(len(jobs)):
+    status[i] = 0
+results = [None]*len(jobs)
 
-def worker_master(worker):
-    hostname, i = worker
-    l.acquire()
-    while len(jobs)>0:
-        j, workstring = jobs.pop()
-        l.release()
-        print "Sending \"%s\" to %s (%d)" % (workstring, hostname, i)
+def worker_master(worker,l):
+    hostname, i  = worker
+    for j in xrange(len(jobs)):
+        if status[j]>0:
+            continue
+        else:
+            status[j] = 1
+        workstring = jobs[j]
+        print "Sending \"%s\" (%d) to %s (%d)" % (workstring, j, hostname, i)
+        s = socket.socket()    
+        s.connect((hostname, port))
+        s.send(workstring)
+        print s.recv(1024)
+        s.close
 
-        l.acquire()
-        #results[j] = workstring
-    l.release()
-   # s = socket.socket()    
-   # s.connect((mic, port))
-   # s.send(w)
-   # print s.recv(1024)
-   # s.close
-    
+
+print "Workers: %d" %len(workers)
+print "Jobs:    %d" %len(jobs)
 
 # Local pool, no work done here, only for communication
-pool = InterruptiblePool(len(workers))
-pool.map(worker_master, workers)
+wref = len(workers)*[None]
+for w,worker in enumerate(workers):
+    wref[w] = multiprocessing.Process(target=worker_master, args=(worker,l))
+    wref[w].start()
+
+for w,worker in enumerate(workers):
+    wref[w].join()
 
