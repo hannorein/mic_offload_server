@@ -1,20 +1,21 @@
 #! /bin/env python  
 import socket             
 import numpy as np
-#from interruptible_pool import InterruptiblePool
 import multiprocessing
 import os
+import time
+import sys
 
 port = 5001                
-mics = [("mic0", 24), ("mic1", 24)]
+mics = [("mic0", 114), ("mic1", 114)]
 #cpus = [("localhost", 4)]
 cpus = []
 
 files_upload = ["../../megno_grid/nbody"]
 
 jobs = []
-for a in np.linspace(2.,3.,10):
-    for e in np.linspace(0.,.1,10):
+for a in np.linspace(2.,3.,20):
+    for e in np.linspace(0.,.1,20):
         workstring = "./nbody --a=%.8e --e=%.8e | tail -n 1" % (a,e)
         jobs.append(workstring)
 
@@ -68,6 +69,22 @@ wref = len(workers)*[None]
 for w,worker in enumerate(workers):
     wref[w] = multiprocessing.Process(target=worker_master, args=(worker,))
     wref[w].start()
+    
+print "Running...\n"
+while True:
+    jobs_running = 0
+    jobs_done = 0
+    for j in xrange(len(jobs)):
+        if status[j]==1:    
+            jobs_running+=1
+        if status[j]==2:    
+            jobs_done+=1
+    sys.stdout.write("\033[F")
+    print "Jobs running: %7.3f%%    Jobs done: %7.3f%%" %(float(jobs_running)/float(len(jobs))*100.,float(jobs_done)/float(len(jobs))*100.)
+    if jobs_done == len(jobs):
+        break
+    else:
+        time.sleep(1.)
 
 for w,worker in enumerate(workers):
     wref[w].join()
