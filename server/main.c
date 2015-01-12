@@ -5,11 +5,11 @@
 
 void doprocessing (int sock) {
     int n;
-    char buffer[256];
+    char buffer[4096];
 
-    bzero(buffer,256);
+    bzero(buffer,4096);
 
-    n = read(sock,buffer,255);
+    n = read(sock,buffer,4095);
     if (n < 0) {
         perror("ERROR reading from socket");
         exit(1);
@@ -25,7 +25,7 @@ void doprocessing (int sock) {
 int main( int argc, char *argv[] )
 {
     int sockfd, newsockfd, portno, clilen;
-    char buffer[256];
+    char buffer[4096];
     struct sockaddr_in serv_addr, cli_addr;
     int  n;
 
